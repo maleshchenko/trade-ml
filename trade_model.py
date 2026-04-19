@@ -357,29 +357,35 @@ def stream_live_signals(
     stds,
     symbol=REALTIME_SYMBOL,
     interval=REALTIME_INTERVAL,
-    updates=REALTIME_UPDATES,
     sleep_seconds=REALTIME_SLEEP,
 ):
     print(f"Starting live signal stream for {symbol} on {interval} interval")
-    for update in range(updates):
-        raw = fetch_latest_klines(symbol, interval, limit=SEQ_LEN + 1)
-        live_df = format_klines(raw)
-        live_df = add_features(live_df)
-        live_df = normalize_live_features(live_df, means, stds)
+    print("Press Ctrl+C to stop.")
+    update = 0
+    while True:
+        try:
+            raw = fetch_latest_klines(symbol, interval, limit=100)
+            live_df = format_klines(raw)
+            live_df = add_features(live_df)
+            live_df = normalize_live_features(live_df, means, stds)
 
-        if len(live_df) < SEQ_LEN:
-            print("Not enough live data to generate a signal yet.")
+            if len(live_df) < SEQ_LEN:
+                print("Not enough live data to generate a signal yet.")
+                time.sleep(sleep_seconds)
+                continue
+
+            x = torch.tensor(
+                live_df[FEATURE_COLS].iloc[-SEQ_LEN:].values,
+                dtype=torch.float32,
+            ).unsqueeze(0)
+            probs = model(x)[0].detach().numpy()
+            signal = decode_signal(probs)
+            last_price = live_df["close"].iloc[-1]
+            update += 1
+            print(f"[{update}] Price: {last_price:.2f}, Signal: {signal}, probs: {probs}")
             time.sleep(sleep_seconds)
-            continue
-
-        x = torch.tensor(
-            live_df[FEATURE_COLS].iloc[-SEQ_LEN:].values,
-            dtype=torch.float32,
-        ).unsqueeze(0)
-        probs = model(x)[0].detach().numpy()
-        signal = decode_signal(probs)
-        last_price = live_df["close"].iloc[-1]
-        print(f"[{update+1}/{updates}] Price: {last_price:.2f}, Signal: {signal}, probs: {probs}")
-        time.sleep(sleep_seconds)
+        except KeyboardInterrupt:
+            print("\nLive signal stream interrupted.")
+            break
 
     print("Live signal stream complete.")
