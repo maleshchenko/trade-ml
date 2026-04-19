@@ -10,6 +10,7 @@ import requests
 import pandas as pd
 import numpy as np
 import time
+from datetime import datetime
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -479,7 +480,8 @@ def stream_live_signals(
             signal = decode_signal(probs)
             last_price = live_df["close"].iloc[-1]
             update += 1
-            print(f"[{update}] Price: {last_price:.2f}, Signal: {signal}, probs: {probs}")
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+            print(f"[{current_time}] [{update}] Price: {last_price:.2f}, Signal: {signal}, probs: {probs}")
             time.sleep(sleep_seconds)
         except KeyboardInterrupt:
             print("\nLive signal stream interrupted.")
