@@ -12,7 +12,7 @@ from trade_model import (
     normalize_features,
     train_model,
     save_checkpoint,
-    load_checkpoint,
+    compute_class_weights,
     MODEL_PATH,
 )
 
@@ -36,8 +36,9 @@ def main(retrain: bool = False):
 
     train_dataset = TradingDataset(train_df)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    class_weights = compute_class_weights(train_df["label"].values)
 
-    train_model(model, train_loader)
+    train_model(model, train_loader, class_weights=class_weights)
     save_checkpoint(model, means, stds)
 
 

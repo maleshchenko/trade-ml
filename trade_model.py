@@ -37,9 +37,39 @@ REALTIME_SLEEP = 60
 # File path to save or load the trained model checkpoint
 MODEL_PATH = "model.pt"
 
+# Feature columns used by the model
+FEATURE_COLS = [
+    "return",
+    "volatility",
+    "volume_z",
+    "ma_diff",
+    "rsi",
+    "atr",
+    "volume_change",
+]
+
 # =====================
 # FEATURE ENGINEERING
 # =====================
+
+def compute_rsi(series, period=14):
+    delta = series.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.rolling(period).mean()
+    avg_loss = loss.rolling(period).mean()
+    rs = avg_gain / (avg_loss + 1e-9)
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+
+def compute_atr(df, period=14):
+    high_low = df["high"] - df["low"]
+    high_close = (df["high"] - df["close"].shift(1)).abs()
+    low_close = (df["low"] - df["close"].shift(1)).abs()
+    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    return tr.rolling(period).mean()
+
 
 def add_features(df):
     df = df.copy()
@@ -48,30 +78,31 @@ def add_features(df):
     df["volume_z"] = (df["volume"] - df["volume"].rolling(20).mean()) / (
         df["volume"].rolling(20).std() + 1e-9
     )
+    df["ma10"] = df["close"].rolling(10).mean()
+    df["ma20"] = df["close"].rolling(20).mean()
+    df["ma_diff"] = df["ma10"] - df["ma20"]
+    df["volume_change"] = df["volume"].pct_change().replace([np.inf, -np.inf], 0.0)
+    df["rsi"] = compute_rsi(df["close"], period=14)
+    df["atr"] = compute_atr(df, period=14)
     df = df.dropna().reset_index(drop=True)
     return df
 
 
 def normalize_features(df, means=None, stds=None):
-    cols = ["return", "volatility", "volume_z"]
     df = df.copy()
-
     if means is None or stds is None:
-        for col in cols:
-            mean = df[col].mean()
-            std = df[col].std() + 1e-9
-            df[col] = (df[col] - mean) / std
-    else:
-        for col in cols:
-            df[col] = (df[col] - means[col]) / stds[col]
+        means = {col: df[col].mean() for col in FEATURE_COLS}
+        stds = {col: df[col].std() + 1e-9 for col in FEATURE_COLS}
+
+    for col in FEATURE_COLS:
+        df[col] = (df[col] - means[col]) / stds[col]
 
     return df
 
 
 def compute_normalization_params(df):
-    cols = ["return", "volatility", "volume_z"]
-    means = {col: df[col].mean() for col in cols}
-    stds = {col: df[col].std() + 1e-9 for col in cols}
+    means = {col: df[col].mean() for col in FEATURE_COLS}
+    stds = {col: df[col].std() + 1e-9 for col in FEATURE_COLS}
     return means, stds
 
 
@@ -100,12 +131,19 @@ def load_checkpoint(model, path=MODEL_PATH):
 # LABELING
 # =====================
 
-def create_labels(df, horizon=10):
+def create_labels(df, horizon=10, target=0.005, stop=0.003):
     df = df.copy()
-    future_return = df["close"].shift(-horizon) / df["close"] - 1
+    future_high = df["high"].rolling(horizon).max().shift(-horizon)
+    future_low = df["low"].rolling(horizon).min().shift(-horizon)
+    entry_price = df["close"]
+
+    up_move = (future_high - entry_price) / entry_price
+    down_move = (entry_price - future_low) / entry_price
+
     df["label"] = 0
-    df.loc[future_return > 0.002, "label"] = 1
-    df.loc[future_return < -0.002, "label"] = -1
+    df.loc[(up_move > target) & (down_move < stop), "label"] = 1
+    df.loc[(down_move > target) & (up_move < stop), "label"] = -1
+
     df = df.dropna().reset_index(drop=True)
     return df
 
@@ -115,7 +153,7 @@ def create_labels(df, horizon=10):
 
 class TradingDataset(Dataset):
     def __init__(self, df):
-        self.features = df[["return", "volatility", "volume_z"]].values
+        self.features = df[FEATURE_COLS].values
         self.labels = df["label"].values
 
     def __len__(self):
@@ -132,7 +170,7 @@ class TradingDataset(Dataset):
 # =====================
 
 class LSTMModel(nn.Module):
-    def __init__(self, input_size=3, hidden_size=64):
+    def __init__(self, input_size=len(FEATURE_COLS), hidden_size=64):
         super().__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
         self.fc = nn.Linear(hidden_size, 3)
@@ -148,9 +186,16 @@ class LSTMModel(nn.Module):
 # TRAIN
 # =====================
 
-def train_model(model, dataloader):
+def compute_class_weights(labels):
+    class_ids = np.array([0 if y == 0 else 1 if y == 1 else 2 for y in labels])
+    counts = np.bincount(class_ids, minlength=3)
+    weights = np.array([len(class_ids) / (count + 1e-9) for count in counts], dtype=np.float32)
+    return torch.tensor(weights, dtype=torch.float32)
+
+
+def train_model(model, dataloader, class_weights=None):
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(weight=class_weights) if class_weights is not None else nn.CrossEntropyLoss()
     model.train()
 
     for epoch in range(EPOCHS):
@@ -164,13 +209,53 @@ def train_model(model, dataloader):
             total_loss += loss.item()
         print(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
 
+
+def label_to_class(labels):
+    return np.array([0 if y == 0 else 1 if y == 1 else 2 for y in labels], dtype=int)
+
+
+def predict_dataset(model, df):
+    model.eval()
+    features = df[FEATURE_COLS].values
+    y_true = label_to_class(df["label"].values[SEQ_LEN:])
+    predictions = []
+
+    with torch.no_grad():
+        for i in range(SEQ_LEN, len(df)):
+            x = torch.tensor(features[i - SEQ_LEN : i], dtype=torch.float32).unsqueeze(0)
+            probs = model(x)[0].detach().numpy()
+            predictions.append(int(np.argmax(probs)))
+
+    return y_true, np.array(predictions)
+
+
+def classification_report(y_true, y_pred):
+    num_classes = 3
+    labels = ["neutral", "long", "short"]
+    cm = np.zeros((num_classes, num_classes), dtype=int)
+    for t, p in zip(y_true, y_pred):
+        cm[t, p] += 1
+
+    report = []
+    for i in range(num_classes):
+        tp = cm[i, i]
+        fp = cm[:, i].sum() - tp
+        fn = cm[i, :].sum() - tp
+        precision = tp / (tp + fp + 1e-9)
+        recall = tp / (tp + fn + 1e-9)
+        f1 = 2 * precision * recall / (precision + recall + 1e-9)
+        support = cm[i, :].sum()
+        report.append((labels[i], precision, recall, f1, support))
+
+    return cm, report
+
 # =====================
 # BACKTEST
 # =====================
 
 def backtest(model, df):
     model.eval()
-    features = df[["return", "volatility", "volume_z"]].values
+    features = df[FEATURE_COLS].values
     prices = df["close"].values
     balance = 1000
     position = 0
@@ -257,17 +342,6 @@ def format_klines(raw):
     return df
 
 
-def compute_live_features(df):
-    df = df.copy()
-    df["return"] = np.log(df["close"] / df["close"].shift(1))
-    df["volatility"] = df["return"].rolling(10).std()
-    df["volume_z"] = (df["volume"] - df["volume"].rolling(20).mean()) / (
-        df["volume"].rolling(20).std() + 1e-9
-    )
-    df = df.dropna().reset_index(drop=True)
-    return df
-
-
 def normalize_live_features(df, means, stds):
     return normalize_features(df, means, stds)
 
@@ -290,7 +364,7 @@ def stream_live_signals(
     for update in range(updates):
         raw = fetch_latest_klines(symbol, interval, limit=SEQ_LEN + 1)
         live_df = format_klines(raw)
-        live_df = compute_live_features(live_df)
+        live_df = add_features(live_df)
         live_df = normalize_live_features(live_df, means, stds)
 
         if len(live_df) < SEQ_LEN:
@@ -299,7 +373,7 @@ def stream_live_signals(
             continue
 
         x = torch.tensor(
-            live_df[["return", "volatility", "volume_z"]].iloc[-SEQ_LEN:].values,
+            live_df[FEATURE_COLS].iloc[-SEQ_LEN:].values,
             dtype=torch.float32,
         ).unsqueeze(0)
         probs = model(x)[0].detach().numpy()
