@@ -28,11 +28,11 @@ EPOCHS = 10
 # Learning rate for optimizer
 LR = 0.001
 # Probability threshold for entering trades
-THRESHOLD = 0.65
+THRESHOLD = 0.8
 # Take profit percentage
-TAKE_PROFIT = 0.01
+TAKE_PROFIT = 0.015
 # Stop loss percentage
-STOP_LOSS = 0.005
+STOP_LOSS = 0.1
 # Trading fee per trade
 FEE = 0.0004
 
