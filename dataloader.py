@@ -1,4 +1,4 @@
-\"\"\"Download historical candlestick data from Binance API.
+"""Download historical candlestick data from Binance API.
 
 This module provides utilities to:
 1. Fetch candlestick (kline) data from Binance REST API
@@ -8,7 +8,7 @@ This module provides utilities to:
 
 Usage:
     python dataloader.py
-\"\"\"
+"""
 
 import requests
 import pandas as pd
@@ -25,7 +25,7 @@ INTERVAL = "1m"   # 1m, 5m, 15m, 1h, etc.
 LIMIT = 1000      # max per request
 
 def fetch_klines(symbol, interval, start_time=None):
-    \"\"\"Fetch candlestick data from Binance API for a given time range.
+    """Fetch candlestick data from Binance API for a given time range.
     
     Args:
         symbol: Trading pair (e.g., 'BTCUSDT')
@@ -34,7 +34,7 @@ def fetch_klines(symbol, interval, start_time=None):
         
     Returns:
         List of raw kline data, or empty list if error occurs
-    \"\"\"
+    """
     # Set up API request parameters
     params = {
         "symbol": symbol,
@@ -59,7 +59,7 @@ def fetch_klines(symbol, interval, start_time=None):
 
 
 def download_historical(symbol, interval, total_points=5000):
-    \"\"\"Download historical data by making multiple API requests.
+    """Download historical data by making multiple API requests.
     
     Handles pagination to fetch large amounts of data while respecting rate limits.
     
@@ -70,7 +70,7 @@ def download_historical(symbol, interval, total_points=5000):
         
     Returns:
         List of all downloaded kline data
-    \"\"\"
+    """
     all_data = []
     
     # Calculate how many API requests we need
@@ -108,14 +108,14 @@ def download_historical(symbol, interval, total_points=5000):
 
 
 def format_to_dataframe(raw):
-    \"\"\"Convert raw Binance API kline data to a pandas DataFrame.
+    """Convert raw Binance API kline data to a pandas DataFrame.
     
     Args:
         raw: List of raw kline data from Binance API
         
     Returns:
         DataFrame with columns: timestamp, open, high, low, close, volume
-    \"\"\"
+    """
     # Create DataFrame with all columns from API response
     df = pd.DataFrame(raw, columns=[
         "open_time", "open", "high", "low", "close", "volume",
