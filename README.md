@@ -1,6 +1,6 @@
 # Trade ML - LSTM-Based Cryptocurrency Trading Model
 
-A machine learning trading system that uses Long Short-Term Memory (LSTM) neural networks to predict Bitcoin price movements and generate trading signals.
+A machine learning trading assistant that uses Long Short-Term Memory (LSTM) neural networks to predict Bitcoin price movements and generate trading signals.
 
 ## Overview
 
