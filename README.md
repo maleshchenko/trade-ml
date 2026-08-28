@@ -155,3 +155,7 @@ Model Training → Evaluate → Backtest → Live Trading
 - Live signals use the same normalization parameters computed during training
 - Backtesting assumes fixed fee structure and no slippage
 - Real trading performance may differ from backtest results
+
+## Example Output: 
+
+<img width="742" height="505" alt="Screenshot 2026-08-28 at 12 44 13 PM" src="https://github.com/user-attachments/assets/2f6d1431-6235-4045-b345-81bd6ebce876" />
