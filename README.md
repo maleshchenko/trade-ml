@@ -2,7 +2,7 @@
 
 ## Disclaimer
 
-This is an educational project. Cryptocurrency trading involves significant risk. Use at your own discretion and never trade with capital you can't afford to lose.
+This is an educational project. Cryptocurrency trading involves significant risk. Use at your own discretion and never trade with capital you can't afford to lose. It's impossible to predict price action reliably.
 
 ## Overview
 
