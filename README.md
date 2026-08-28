@@ -159,3 +159,17 @@ Model Training → Evaluate → Backtest → Live Trading
 ## Example Output: 
 
 <img width="742" height="505" alt="Screenshot 2026-08-28 at 12 44 13 PM" src="https://github.com/user-attachments/assets/2f6d1431-6235-4045-b345-81bd6ebce876" />
+
+probs[0]: probability of NEUTRAL signal (no trade)
+probs[1]: probability of LONG signal (buy)
+probs[2]: probability of SHORT signal (sell)
+
+In this exmaple example [0.13898478 0.01935222 0.84166306]:
+
+13.9% chance of neutral
+1.9% chance of long (buy)
+84.2% chance of short (sell) ← this is the dominant prediction
+
+The model picks the highest probability as the predicted signal. So in this case, it's predicting a SHORT signal with 84% confidence.
+
+Then the actual trading decision is up to you. In backtests, it depends on whether that highest probability exceeds the THRESHOLD (currently 0.8 or 80%) to actually execute the trade. In your example, 84.2% > 80%, so the short signal would trigger in the backtest.
