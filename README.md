@@ -32,6 +32,8 @@ trade-ml/
 ├── evaluate.py         # Test model performance on validation set
 ├── backtest.py         # Backtest trading strategy on historical data
 ├── live.py             # Stream live trading signals
+├── Dockerfile          # Container image
+├── docker-compose.yml  # Compose service (bind-mounts this directory)
 ├── data.csv            # Historical market data (OHLCV)
 └── model.pt            # Trained model checkpoint
 ```
@@ -65,6 +67,42 @@ python backtest.py
 
 # Stream live signals (requires trained model)
 python live.py
+```
+
+### Docker
+
+Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
+
+```bash
+# Build the image
+docker compose build
+
+# Download historical data
+docker compose run --rm trade python dataloader.py
+
+# Train the model (requires data.csv)
+docker compose run --rm trade python train.py
+docker compose run --rm trade python train.py --retrain
+
+# Evaluate on test set
+docker compose run --rm trade python evaluate.py
+
+# Backtest on historical data
+docker compose run --rm trade python backtest.py
+
+# Stream live signals (requires trained model)
+docker compose run --rm trade python live.py
+```
+
+The project directory is mounted into the container, so `data.csv` and `model.pt` are written on the host and reused across runs.
+
+Without Compose:
+
+```bash
+docker build -t trade-ml .
+docker run --rm -v "$(pwd)":/app trade-ml python dataloader.py
+docker run --rm -v "$(pwd)":/app trade-ml python train.py
+docker run --rm -it -v "$(pwd)":/app trade-ml python live.py
 ```
 
 ## Configuration

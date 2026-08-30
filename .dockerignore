@@ -1,0 +1,8 @@
+.git
+.gitignore
+.gitattributes
+README.md
+__pycache__
+*.pyc
+data.csv
+model.pt
