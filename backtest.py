@@ -10,6 +10,7 @@ Usage:
     python backtest.py
 """
 
+import logging
 import pandas as pd
 from trade_model import (
     LSTMModel,
@@ -23,6 +24,9 @@ from trade_model import (
 
 def main():
     """Run backtest on test set."""
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
     # Load and preprocess data
     df = pd.read_csv("data.csv")
     df = add_features(df)
@@ -40,7 +44,7 @@ def main():
     test_df = df[split:]
 
     # Run backtest on test set
-    print("Backtesting loaded model on test data...")
+    logger.info("Backtesting loaded model on test data...")
     backtest(model, test_df)
 
 

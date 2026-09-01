@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import logging
 import os
 import pandas as pd
 from torch.utils.data import DataLoader
@@ -37,6 +38,9 @@ def main(retrain: bool = False):
     Args:
         retrain: If True, retrain even if checkpoint exists.
     """
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
     # Load raw historical data
     df = pd.read_csv("data.csv")
     
@@ -61,8 +65,8 @@ def main(retrain: bool = False):
 
     # Check if model already exists
     if os.path.exists(MODEL_PATH) and not retrain:
-        print(f"Model checkpoint already exists at {MODEL_PATH}.")
-        print("Use --retrain to force training or remove the checkpoint file.")
+        logger.warning(f"Model checkpoint already exists at {MODEL_PATH}.")
+        logger.warning("Use --retrain to force training or remove the checkpoint file.")
         return
 
     # Create dataset and data loader for training

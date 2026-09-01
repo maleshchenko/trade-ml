@@ -5,6 +5,7 @@ Predicts market signals (long/short/neutral) based on technical features and
 implements backtesting and live trading capabilities.
 """
 
+import logging
 import os
 import requests
 import pandas as pd
@@ -14,6 +15,8 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
+
+logger = logging.getLogger(__name__)
 
 # =====================
 # CONFIG
@@ -141,7 +144,7 @@ def save_checkpoint(model, means, stds, path=MODEL_PATH):
         "stds": stds,
     }
     torch.save(checkpoint, path)
-    print(f"Saved model checkpoint to {path}")
+    logger.info(f"Saved model checkpoint to {path}")
 
 
 def load_checkpoint(model, path=MODEL_PATH):
@@ -153,7 +156,7 @@ def load_checkpoint(model, path=MODEL_PATH):
     except TypeError:
         checkpoint = torch.load(path, map_location=torch.device("cpu"))
     model.load_state_dict(checkpoint["model_state"])
-    print(f"Loaded model checkpoint from {path}")
+    logger.info(f"Loaded model checkpoint from {path}")
     return checkpoint["means"], checkpoint["stds"]
 
 # =====================
@@ -269,7 +272,7 @@ def train_model(model, dataloader, class_weights=None):
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-        print(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
+        logger.info(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
 
 
 def label_to_class(labels):
@@ -378,11 +381,11 @@ def backtest(model, df):
                     position = 0
 
     # Print backtest results
-    print(f"Final balance: {balance:.2f}")
-    print(f"Trades: {len(trades)}")
+    logger.info(f"Final balance: {balance:.2f}")
+    logger.info(f"Trades: {len(trades)}")
     if trades:
-        print(f"Avg trade: {np.mean(trades):.4f}")
-        print(f"Win rate: {np.mean([t > 0 for t in trades]):.2f}")
+        logger.info(f"Avg trade: {np.mean(trades):.4f}")
+        logger.info(f"Win rate: {np.mean([t > 0 for t in trades]):.2f}")
 
 # =====================
 # LIVE SIGNALS
@@ -455,8 +458,8 @@ def stream_live_signals(
     
     Fetches latest candles, computes features, and generates trading signals periodically.
     """
-    print(f"Starting live signal stream for {symbol} on {interval} interval")
-    print("Press Ctrl+C to stop.")
+    logger.info(f"Starting live signal stream for {symbol} on {interval} interval")
+    logger.info("Press Ctrl+C to stop.")
     update = 0
     while True:
         try:
@@ -467,7 +470,7 @@ def stream_live_signals(
             live_df = normalize_live_features(live_df, means, stds)
 
             if len(live_df) < SEQ_LEN:
-                print("Not enough live data to generate a signal yet.")
+                logger.warning("Not enough live data to generate a signal yet.")
                 time.sleep(sleep_seconds)
                 continue
 
@@ -481,10 +484,10 @@ def stream_live_signals(
             last_price = live_df["close"].iloc[-1]
             update += 1
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-            print(f"[{current_time}] [{update}] Price: {last_price:.2f}, Signal: {signal}, probs: {probs}")
+            logger.info(f"[{current_time}] [{update}] Price: {last_price:.2f}, Signal: {signal}, probs: {probs}")
             time.sleep(sleep_seconds)
         except KeyboardInterrupt:
-            print("\nLive signal stream interrupted.")
+            logger.info("\nLive signal stream interrupted.")
             break
 
-    print("Live signal stream complete.")
+    logger.info("Live signal stream complete.")

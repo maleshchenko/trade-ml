@@ -10,6 +10,7 @@ Usage:
     python evaluate.py
 """
 
+import logging
 import pandas as pd
 from trade_model import (
     LSTMModel,
@@ -24,6 +25,9 @@ from trade_model import (
 
 def main():
     """Evaluate model performance on test set."""
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
     # Load and preprocess data
     df = pd.read_csv("data.csv")
     df = add_features(df)
@@ -46,16 +50,16 @@ def main():
     # Compute classification metrics
     cm, report = classification_report(y_true, y_pred)
 
-    # Print classification report
-    print("Classification report on test set:")
+    # Log classification report
+    logger.info("Classification report on test set:")
     for label, precision, recall, f1, support in report:
-        print(
+        logger.info(
             f"{label:7}  precision={precision:.3f}  recall={recall:.3f}  f1={f1:.3f}  support={support}"
         )
 
-    # Print confusion matrix
-    print("\nConfusion matrix (rows=true, cols=predicted):")
-    print(cm)
+    # Log confusion matrix
+    logger.info("\nConfusion matrix (rows=true, cols=predicted):")
+    logger.info(cm)
 
 
 if __name__ == "__main__":

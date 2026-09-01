@@ -10,9 +10,12 @@ Usage:
     python dataloader.py
 """
 
+import logging
 import requests
 import pandas as pd
 import time
+
+logger = logging.getLogger(__name__)
 
 # Binance API configuration
 BASE_URL = "https://api.binance.com/api/v3/klines"
@@ -52,7 +55,7 @@ def fetch_klines(symbol, interval, start_time=None):
     
     # Check for API errors
     if isinstance(data, dict) and "code" in data:
-        print(f"API Error: {data}")
+        logger.error(f"API Error: {data}")
         return []
 
     return data
@@ -90,12 +93,12 @@ def download_historical(symbol, interval, total_points=5000):
         data = fetch_klines(symbol, interval, start_time)
 
         if not data:
-            print(f"No data returned at request {i+1}")
+            logger.warning(f"No data returned at request {i+1}")
             break
 
         # Add data to collection
         all_data.extend(data)
-        print(f"Downloaded {len(all_data)} rows")
+        logger.info(f"Downloaded {len(all_data)} rows")
 
         # Move to next time window (start after last close time from this batch)
         start_time = data[-1][6] + 1
@@ -155,8 +158,8 @@ def main():
     df.to_csv("data.csv", index=False)
 
     # Print confirmation and data preview
-    print("\nSaved to data.csv")
-    print(df.head())
+    logger.info("\nSaved to data.csv")
+    logger.info(f"\nData preview:\n{df.head()}")
 
 
 if __name__ == "__main__":
