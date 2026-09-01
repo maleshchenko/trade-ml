@@ -213,3 +213,9 @@ In this exmaple example [0.13898478 0.01935222 0.84166306]:
 The model picks the highest probability as the predicted signal. So in this case, it's predicting a SHORT signal with 84% confidence.
 
 Then the actual trading decision is up to you. In backtests, it depends on whether that highest probability exceeds the THRESHOLD (currently 0.8 or 80%) to actually execute the trade. In this example, 84.2% > 80%, so the short signal would trigger in the backtest.
+
+## Unit tests:
+
+```
+pytest tests
+```
