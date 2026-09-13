@@ -484,7 +484,7 @@ def stream_live_signals(
             last_price = live_df["close"].iloc[-1]
             update += 1
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-            logger.info(f"[{current_time}] [{update}] Price: {last_price:.2f}, Signal: {signal}, probs: {probs}")
+            logger.warning(f"[{current_time}] [{update}] Price: {last_price:.2f}, Signal: {signal}, probs: {probs}")
             time.sleep(sleep_seconds)
         except KeyboardInterrupt:
             logger.info("\nLive signal stream interrupted.")
