@@ -27,7 +27,7 @@ INTERVAL = "1m"   # 1m, 5m, 15m, 1h, etc.
 # Maximum number of data points per API request
 LIMIT = 1000      # max per request
 
-def fetch_klines(symbol, interval, start_time=None):
+def fetch_klines(symbol, interval, start_time=None, end_time=None):
     """Fetch candlestick data from Binance API for a given time range.
     
     Args:
@@ -48,6 +48,8 @@ def fetch_klines(symbol, interval, start_time=None):
     # Add start time if provided (to resume from a specific point)
     if start_time:
         params["startTime"] = start_time
+    if end_time:
+        params["endTime"] = end_time
 
     # Make GET request to Binance API
     response = requests.get(BASE_URL, params=params)
@@ -59,6 +61,33 @@ def fetch_klines(symbol, interval, start_time=None):
         return []
 
     return data
+
+
+def download_date_range(symbol, interval, start_date, end_date):
+    """Download all candles in an inclusive date range."""
+    start = pd.Timestamp(start_date)
+    end = pd.Timestamp(end_date)
+    if start > end:
+        raise ValueError("start date must be before or equal to end date")
+
+    start_time = int(start.timestamp() * 1000)
+    end_time = int(end.timestamp() * 1000)
+    all_data = []
+
+    while start_time <= end_time:
+        data = fetch_klines(symbol, interval, start_time, end_time)
+        if not data:
+            break
+        all_data.extend(data)
+        next_start_time = data[-1][6] + 1
+        if next_start_time <= start_time:
+            raise RuntimeError("Binance returned a non-advancing candle range")
+        start_time = next_start_time
+        if len(data) < LIMIT:
+            break
+        time.sleep(0.2)
+
+    return all_data
 
 
 def download_historical(symbol, interval, total_points=5000):
@@ -77,12 +106,12 @@ def download_historical(symbol, interval, total_points=5000):
     all_data = []
     
     # Calculate how many API requests we need
-    num_requests = (total_points // LIMIT) + 1
+    num_requests = (total_points + LIMIT - 1) // LIMIT
     
     # Start from ~100 days ago (enough for 100k 1-min candles)
     # Each 1-min candle is 60 seconds = 60000 milliseconds
     current_time = int(time.time() * 1000)
-    start_time = current_time - (num_requests * LIMIT * 60 * 1000)  # 60 seconds per candle
+    start_time = current_time - (total_points * 60 * 1000)  # 60 seconds per candle
     
     # Fetch data in batches
     for i in range(num_requests):
@@ -149,7 +178,7 @@ def format_to_dataframe(raw):
 def main():
     """Main function: download historical data and save to CSV."""
     # Download raw historical data from Binance
-    raw = download_historical(SYMBOL, INTERVAL, total_points=100000)
+    raw = download_historical(SYMBOL, INTERVAL, total_points=10000)
 
     # Format data into a structured DataFrame
     df = format_to_dataframe(raw)

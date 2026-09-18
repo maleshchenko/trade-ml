@@ -65,6 +65,10 @@ python evaluate.py
 # Backtest on historical data
 python backtest.py
 
+# Backtest an inclusive date range (either bound may be omitted)
+python backtest.py --start-date 2024-01-01 --end-date 2024-01-31
+# Missing candles are downloaded automatically and merged into data.csv
+
 # Stream live signals (requires trained model)
 python live.py
 ```
