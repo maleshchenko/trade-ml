@@ -4,8 +4,10 @@ import pytest
 import numpy as np
 import pandas as pd
 import torch
+import trade_model
 import os
 import tempfile
+from unittest.mock import Mock
 from trade_model import (
     compute_rsi,
     compute_atr,
@@ -368,6 +370,44 @@ class TestFeatureEdgeCases:
         # Should handle zero variance gracefully
         result = normalize_features(df)
         assert isinstance(result, pd.DataFrame)
+
+
+class TestLiveSignalSounds:
+    def run_stream(self, monkeypatch, sound_enabled=True):
+        live_df = pd.DataFrame(
+            {**{col: np.zeros(SEQ_LEN) for col in FEATURE_COLS},
+             "close": np.full(SEQ_LEN, 100.0)}
+        )
+        predictions = iter([
+            [0.9, 0.05, 0.05],
+            [0.05, 0.9, 0.05],
+            [0.05, 0.9, 0.05],
+            [0.05, 0.05, 0.9],
+        ])
+        model = Mock(side_effect=lambda _: torch.tensor([next(predictions)]))
+        sounds = []
+
+        monkeypatch.setattr(trade_model, "fetch_latest_klines", lambda *args, **kwargs: [])
+        monkeypatch.setattr(trade_model, "format_klines", lambda _: live_df)
+        monkeypatch.setattr(trade_model, "add_features", lambda df: df)
+        monkeypatch.setattr(trade_model, "normalize_live_features", lambda df, *_: df)
+        monkeypatch.setattr(trade_model, "play_signal_change_sound", sounds.append)
+        monkeypatch.setattr(
+            trade_model.time,
+            "sleep",
+            Mock(side_effect=[None, None, None, KeyboardInterrupt]),
+        )
+
+        trade_model.stream_live_signals(
+            model, {}, {}, sleep_seconds=0, sound_enabled=sound_enabled
+        )
+        return sounds
+
+    def test_stream_plays_sound_only_when_signal_changes(self, monkeypatch):
+        assert self.run_stream(monkeypatch) == ["long", "short"]
+
+    def test_stream_can_disable_change_sounds(self, monkeypatch):
+        assert self.run_stream(monkeypatch, sound_enabled=False) == []
 
 
 if __name__ == "__main__":

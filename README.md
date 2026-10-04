@@ -73,6 +73,8 @@ python backtest.py --start-date 2024-01-01 --end-date 2024-01-31
 python live.py
 ```
 
+On macOS, live signal streaming plays a distinct built-in sound when the signal changes. The initial signal is reported silently; subsequent changes to neutral, long, or short play a corresponding sound. Use `python live.py --no-sound` to disable sounds. Sound playback requires running `live.py` on macOS rather than inside Docker.
+
 ### Docker
 
 Requires [Docker](https://docs.docker.com/get-docker/) and Docker Compose.

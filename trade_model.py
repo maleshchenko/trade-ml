@@ -8,6 +8,7 @@ implements backtesting and live trading capabilities.
 import logging
 import os
 import requests
+import subprocess
 import pandas as pd
 import numpy as np
 import time
@@ -45,6 +46,11 @@ REALTIME_SYMBOL = "BTCUSDT"
 REALTIME_INTERVAL = "1m"
 REALTIME_UPDATES = 5
 REALTIME_SLEEP = 60
+SIGNAL_SOUNDS = {
+    "neutral": "/System/Library/Sounds/Ping.aiff",
+    "long": "/System/Library/Sounds/Hero.aiff",
+    "short": "/System/Library/Sounds/Basso.aiff",
+}
 
 # File path to save or load the trained model checkpoint
 MODEL_PATH = "model.pt"
@@ -446,6 +452,13 @@ def decode_signal(probs):
     return ["neutral", "long", "short"][idx]
 
 
+def play_signal_change_sound(signal):
+    """Play the macOS sound assigned to a trading signal."""
+    if os.uname().sysname != "Darwin":
+        raise OSError("Signal change sounds are supported only on macOS.")
+    subprocess.run(["afplay", SIGNAL_SOUNDS[signal]], check=True)
+
+
 def stream_live_signals(
     model,
     means,
@@ -453,14 +466,17 @@ def stream_live_signals(
     symbol=REALTIME_SYMBOL,
     interval=REALTIME_INTERVAL,
     sleep_seconds=REALTIME_SLEEP,
+    sound_enabled=True,
 ):
     """Stream live trading signals from Binance market data.
     
     Fetches latest candles, computes features, and generates trading signals periodically.
+    Plays a sound for each signal change when sound_enabled is True.
     """
     logger.info(f"Starting live signal stream for {symbol} on {interval} interval")
     logger.info("Press Ctrl+C to stop.")
     update = 0
+    previous_signal = None
     while True:
         try:
             # Fetch latest market data from Binance
@@ -481,6 +497,9 @@ def stream_live_signals(
             ).unsqueeze(0)
             probs = model(x)[0].detach().numpy()
             signal = decode_signal(probs)
+            if sound_enabled and previous_signal is not None and signal != previous_signal:
+                play_signal_change_sound(signal)
+            previous_signal = signal
             last_price = live_df["close"].iloc[-1]
             update += 1
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
