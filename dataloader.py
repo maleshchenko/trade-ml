@@ -15,15 +15,14 @@ import requests
 import pandas as pd
 import time
 
+from config import DATA_CSV, SYMBOL, INTERVAL, TOTAL_POINTS
+
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Binance API configuration
 BASE_URL = "https://api.binance.com/api/v3/klines"
 
-# Trading symbol (Bitcoin vs USDT)
-SYMBOL = "BTCUSDT"
-# Time interval for candlesticks (1 minute)
-INTERVAL = "1m"   # 1m, 5m, 15m, 1h, etc.
 # Maximum number of data points per API request
 LIMIT = 1000      # max per request
 
@@ -177,17 +176,20 @@ def format_to_dataframe(raw):
 
 def main():
     """Main function: download historical data and save to CSV."""
+    import os
+    os.makedirs(os.path.dirname(DATA_CSV) or ".", exist_ok=True)
+
     # Download raw historical data from Binance
-    raw = download_historical(SYMBOL, INTERVAL, total_points=10000)
+    raw = download_historical(SYMBOL, INTERVAL, total_points=TOTAL_POINTS)
 
     # Format data into a structured DataFrame
     df = format_to_dataframe(raw)
 
     # Save to CSV file for use in training
-    df.to_csv("data.csv", index=False)
+    df.to_csv(DATA_CSV, index=False)
 
     # Print confirmation and data preview
-    logger.info("\nSaved to data.csv")
+    logger.info(f"\nSaved to {DATA_CSV}")
     logger.info(f"\nData preview:\n{df.head()}")
 
 
