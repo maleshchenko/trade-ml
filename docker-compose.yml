@@ -8,7 +8,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATA_DIR=data
-    profiles: [setup]   # only runs when explicitly requested
+    profiles: [setup]
 
   # ── Train the model ─────────────────────────────────────────────────────────
   train:
@@ -32,7 +32,7 @@ services:
       - DATA_DIR=data
     profiles: [setup]
 
-  # ── Live signal stream (always-on) ──────────────────────────────────────────
+  # ── Live signal stream (always-on, logs to stdout) ──────────────────────────
   live:
     build: .
     command: python live.py --no-sound
@@ -41,6 +41,24 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATA_DIR=data
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "50"
+
+  # ── FastAPI signal endpoint ──────────────────────────────────────────────────
+  api:
+    build: .
+    command: uvicorn api:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATA_DIR=data
+    ports:
+      - "8000:8000"
     restart: unless-stopped
     logging:
       driver: json-file
