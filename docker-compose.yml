@@ -1,8 +1,49 @@
 services:
-  trade:
+  # ── Download historical data ────────────────────────────────────────────────
+  dataloader:
     build: .
+    command: python dataloader.py
     volumes:
-      - .:/app
-    working_dir: /app
-    stdin_open: true
-    tty: true
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATA_DIR=data
+    profiles: [setup]   # only runs when explicitly requested
+
+  # ── Train the model ─────────────────────────────────────────────────────────
+  train:
+    build: .
+    command: python train.py
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATA_DIR=data
+    profiles: [setup]
+
+  # ── Evaluate the model ──────────────────────────────────────────────────────
+  evaluate:
+    build: .
+    command: python evaluate.py
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATA_DIR=data
+    profiles: [setup]
+
+  # ── Live signal stream (always-on) ──────────────────────────────────────────
+  live:
+    build: .
+    command: python live.py --no-sound
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATA_DIR=data
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "50"
