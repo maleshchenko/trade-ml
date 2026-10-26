@@ -30,6 +30,7 @@ from trade_model import (
     compute_class_weights,
     MODEL_PATH,
 )
+from config import DATA_CSV
 
 
 def main(retrain: bool = False):
@@ -42,8 +43,8 @@ def main(retrain: bool = False):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
     # Load raw historical data
-    df = pd.read_csv("data.csv")
-    
+    df = pd.read_csv(DATA_CSV)
+
     # Add technical indicators and features
     df = add_features(df)
     
