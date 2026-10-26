@@ -14,6 +14,7 @@ Usage:
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from typing import Dict, Optional
 
 import numpy as np
 import torch
@@ -38,9 +39,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 # ── Global model state (loaded once at startup) ──────────────────────────────
 
-_model: LSTMModel | None = None
-_means: dict | None = None
-_stds: dict | None = None
+_model: Optional[LSTMModel] = None
+_means: Optional[dict] = None
+_stds: Optional[dict] = None
 
 
 @asynccontextmanager
@@ -61,12 +62,12 @@ app = FastAPI(title="trade-ml signal API", lifespan=lifespan)
 # ── Response schemas ─────────────────────────────────────────────────────────
 
 class SignalResponse(BaseModel):
-    signal: str                    # "long" | "short" | "neutral"
-    price: float                   # latest close price
-    probabilities: dict[str, float]  # {"neutral": …, "long": …, "short": …}
+    signal: str                        # "long" | "short" | "neutral"
+    price: float                       # latest close price
+    probabilities: Dict[str, float]    # {"neutral": …, "long": …, "short": …}
     symbol: str
     interval: str
-    timestamp: str                 # ISO-8601 UTC
+    timestamp: str                     # ISO-8601 UTC
 
 
 class HealthResponse(BaseModel):
