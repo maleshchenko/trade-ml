@@ -17,6 +17,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
+from config import MODEL_PATH  # noqa: F401 – re-exported for train.py / evaluate.py
+
 logger = logging.getLogger(__name__)
 
 # =====================
@@ -51,9 +53,6 @@ SIGNAL_SOUNDS = {
     "long": "/System/Library/Sounds/Hero.aiff",
     "short": "/System/Library/Sounds/Basso.aiff",
 }
-
-# File path to save or load the trained model checkpoint
-MODEL_PATH = "model.pt"
 
 # Feature columns used by the model
 FEATURE_COLS = [
@@ -142,8 +141,11 @@ def compute_normalization_params(df):
     return means, stds
 
 
-def save_checkpoint(model, means, stds, path=MODEL_PATH):
+def save_checkpoint(model, means, stds, path=None):
     """Save model weights and normalization parameters to disk."""
+    if path is None:
+        path = MODEL_PATH
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     checkpoint = {
         "model_state": model.state_dict(),
         "means": means,
@@ -153,8 +155,10 @@ def save_checkpoint(model, means, stds, path=MODEL_PATH):
     logger.info(f"Saved model checkpoint to {path}")
 
 
-def load_checkpoint(model, path=MODEL_PATH):
+def load_checkpoint(model, path=None):
     """Load model weights and normalization parameters from disk."""
+    if path is None:
+        path = MODEL_PATH
     if not os.path.exists(path):
         raise FileNotFoundError(f"Model checkpoint not found at {path}")
     try:
